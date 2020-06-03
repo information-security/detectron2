@@ -110,16 +110,30 @@ def read_image(file_name, format=None):
         image (np.ndarray): an HWC image in the given format, which is 0-255, uint8 for
             supported image modes in PIL or "BGR"; float (0-1 for Y) for YUV-BT.601.
     """
-    with PathManager.open(file_name, "rb") as f:
-        image = Image.open(f)
+#     with PathManager.open(file_name, "rb") as f:
+#         image = Image.open(f)
 
-        # capture and ignore this bug: https://github.com/python-pillow/Pillow/issues/3973
-        try:
-            image = ImageOps.exif_transpose(image)
-        except Exception:
-            pass
+#         # capture and ignore this bug: https://github.com/python-pillow/Pillow/issues/3973
+#         try:
+#             image = ImageOps.exif_transpose(image)
+#         except Exception:
+#             pass
 
-        return convert_PIL_to_numpy(image, format)
+#         return convert_PIL_to_numpy(image, format)
+
+    img = cv2.imread(file_name, cv2.IMREAD_UNCHANGED)
+    # PIL squeezes out the channel dimension for "L", so make it HWC
+    if format == "L":
+        img = np.expand_dims(img, -1)
+    elif format == "BGR":
+        # PIL only supports RGB, so convert to RGB and flip channels over below
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # flip channels
+        img = img[:, :, ::-1]
+    elif format == "YUV-BT.601":
+        img = img / 255.0
+        img = np.dot(img, np.array(_M_RGB2YUV).T)
+    return img
 
 
 def check_image_size(dataset_dict, image):
